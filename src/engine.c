@@ -11,7 +11,8 @@ MapTile current_map[MAX_MAP_H][MAX_MAP_W];
 uint8_t map_w, map_h;
 uint16_t frame_count = 0;
 
-/* Camera position in pixels */
+/* Camera position in pixels. The renderer draws a tile-aligned viewport into
+ * the visible BG map, so keep these aligned to 8-pixel tile boundaries. */
 uint16_t cam_x = 0, cam_y = 0;
 
 /* Banner */
@@ -91,25 +92,39 @@ void update_weather(void) {
 
 /* ---- Camera ---- */
 static void update_camera(void) {
-    /* Center camera on player, clamp to map bounds */
+    /*
+     * The old camera subtracted half a screen from unsigned player
+     * coordinates. Near the top/left of a map that underflowed to a huge
+     * value and then clamped the camera to the far edge of the map.
+     *
+     * This renderer copies the current viewport into BG cells 0..19/0..17,
+     * so the safest GBC implementation is a tile-aligned logical camera with
+     * the hardware BG origin fixed at (0,0).
+     */
     uint16_t map_pixel_w = (uint16_t)map_w * 8;
     uint16_t map_pixel_h = (uint16_t)map_h * 8;
+    uint16_t max_x = 0;
+    uint16_t max_y = 0;
+    uint16_t target_x = 0;
+    uint16_t target_y = 0;
 
-    if (map_pixel_w > SCREEN_W) {
-        cam_x = game.player.x - SCREEN_W / 2;
-        if (cam_x > map_pixel_w - SCREEN_W) cam_x = map_pixel_w - SCREEN_W;
-    } else {
-        cam_x = 0;
-    }
+    if (map_pixel_w > SCREEN_W) max_x = map_pixel_w - SCREEN_W;
+    if (map_pixel_h > SCREEN_H) max_y = map_pixel_h - SCREEN_H;
 
-    if (map_pixel_h > SCREEN_H) {
-        cam_y = game.player.y - SCREEN_H / 2;
-        if (cam_y > map_pixel_h - SCREEN_H) cam_y = map_pixel_h - SCREEN_H;
-    } else {
-        cam_y = 0;
-    }
+    if (game.player.x > (SCREEN_W / 2))
+        target_x = game.player.x - (SCREEN_W / 2);
+    if (game.player.y > (SCREEN_H / 2))
+        target_y = game.player.y - (SCREEN_H / 2);
 
-    move_bkg(cam_x, cam_y);
+    if (target_x > max_x) target_x = max_x;
+    if (target_y > max_y) target_y = max_y;
+
+    /* draw_map() renders whole tiles, so keep camera tile aligned */
+    cam_x = (target_x >> 3) << 3;
+    cam_y = (target_y >> 3) << 3;
+
+    /* Do not scroll away from the BG cells draw_map() just populated. */
+    move_bkg(0, 0);
 }
 
 /* ---- Overworld update ---- */
