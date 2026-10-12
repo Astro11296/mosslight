@@ -1,0 +1,32 @@
+name: Build GBC ROM
+
+on:
+  push:
+    branches:
+      - repair/boot-camera-menu
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract bundled GBDK
+        run: |
+          mkdir -p /tmp/gbdk-dl
+          tar -xzf gbdk.tar.gz -C /tmp/gbdk-dl
+          test -x /tmp/gbdk-dl/gbdk/bin/lcc
+
+      - name: Build ROM
+        run: |
+          make clean
+          make
+          test -f build/mosslight.gb
+
+      - name: Upload ROM
+        uses: actions/upload-artifact@v4
+        with:
+          name: mosslight-repair-rom
+          path: build/mosslight.gb
