@@ -24,6 +24,21 @@ void game_init(void) {
     input_update();
     load_tiles();
     load_sprites();
+
+    /*
+     * Initialize both halves of the CGB window tilemap before any menu,
+     * dialogue, shop, or Field Guide is shown.  The old build only wrote
+     * window tile numbers and could inherit undefined palette attributes,
+     * producing corrupted-looking menus on some emulators/hardware.
+     */
+    HIDE_WIN;
+    move_win(7, 7);
+    VBK_REG = 0;
+    fill_win_rect(0, 0, 20, 18, 0);
+    VBK_REG = 1;
+    fill_win_rect(0, 0, 20, 18, 3); /* UI palette */
+    VBK_REG = 0;
+
     audio_init();
 }
 
