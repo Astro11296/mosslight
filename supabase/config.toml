@@ -1,0 +1,2 @@
+[functions.mosslight-download]
+verify_jwt = false
